@@ -2,15 +2,15 @@ using UnityEngine;
 
 namespace Mirror.Experimental
 {
-    [AddComponentMenu("Network/Experimental/NetworkRigidbody")]
-    [HelpURL("https://mirror-networking.com/docs/Articles/Components/NetworkRigidbody.html")]
+    [AddComponentMenu("Network/ Experimental/Network Rigidbody")]
+    [HelpURL("https://mirror-networking.gitbook.io/docs/components/network-rigidbody")]
     public class NetworkRigidbody : NetworkBehaviour
     {
         [Header("Settings")]
         [SerializeField] internal Rigidbody target = null;
 
         [Tooltip("Set to true if moves come from owner client, set to false if moves always come from server")]
-        [SerializeField] bool clientAuthority = false;
+        public bool clientAuthority = false;
 
         [Header("Velocity")]
 
@@ -74,7 +74,7 @@ namespace Mirror.Experimental
         /// <returns></returns>
         bool IgnoreSync => isServer || ClientWithAuthority;
 
-        bool ClientWithAuthority => clientAuthority && hasAuthority;
+        bool ClientWithAuthority => clientAuthority && isOwned;
 
         void OnVelocityChanged(Vector3 _, Vector3 newValue)
         {
@@ -191,7 +191,7 @@ namespace Mirror.Experimental
         [Client]
         void SendToServer()
         {
-            if (!hasAuthority)
+            if (!isOwned)
             {
                 Debug.LogWarning("SendToServer called without authority");
                 return;
@@ -204,7 +204,7 @@ namespace Mirror.Experimental
         [Client]
         void SendVelocity()
         {
-            float now = Time.time;
+            double now = NetworkTime.localTime; // Unity 2019 doesn't have Time.timeAsDouble yet
             if (now < previousValue.nextSyncTime)
                 return;
 
@@ -349,7 +349,7 @@ namespace Mirror.Experimental
             /// <summary>
             /// Next sync time that velocity will be synced, based on syncInterval.
             /// </summary>
-            public float nextSyncTime;
+            public double nextSyncTime;
             public Vector3 velocity;
             public Vector3 angularVelocity;
             public bool isKinematic;

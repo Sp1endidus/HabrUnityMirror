@@ -3,6 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+/*
+	Documentation: https://mirror-networking.gitbook.io/docs/components/network-manager
+	API Reference: https://mirror-networking.com/docs/api/Mirror.NetworkManager.html
+*/
+
 namespace Mirror.Examples.MultipleAdditiveScenes
 {
     [AddComponentMenu("")]
@@ -18,33 +23,40 @@ namespace Mirror.Examples.MultipleAdditiveScenes
         [Scene]
         public string gameScene;
 
+        // This is set true after server loads all subscene instances
         bool subscenesLoaded;
-        readonly List<Scene> subScenes = new List<Scene>();
 
-        #region Server System Callbacks
+        // subscenes are added to this list as they're loaded
+        readonly List<Scene> subScenes = new List<Scene>();
 
         // Sequential index used in round-robin deployment of players into instances and score positioning
         int clientIndex;
 
+        #region Server System Callbacks
+
         /// <summary>
-        /// Called on the server when a client adds a new player with ClientScene.AddPlayer.
+        /// Called on the server when a client adds a new player with NetworkClient.AddPlayer.
         /// <para>The default implementation for this function creates a new player object from the playerPrefab.</para>
         /// </summary>
         /// <param name="conn">Connection from client.</param>
-        public override void OnServerAddPlayer(NetworkConnection conn)
+        public override void OnServerAddPlayer(NetworkConnectionToClient conn)
         {
             StartCoroutine(OnServerAddPlayerDelayed(conn));
         }
 
         // This delay is mostly for the host player that loads too fast for the
         // server to have subscenes async loaded from OnStartServer ahead of it.
-        IEnumerator OnServerAddPlayerDelayed(NetworkConnection conn)
+        IEnumerator OnServerAddPlayerDelayed(NetworkConnectionToClient conn)
         {
             // wait for server to async load all subscenes for game instances
             while (!subscenesLoaded)
                 yield return null;
 
+            // Send Scene message to client to additively load the game scene
             conn.Send(new SceneMessage { sceneName = gameScene, sceneOperation = SceneOperation.LoadAdditive });
+
+            // Wait for end of frame before adding the player to ensure Scene Message goes first
+            yield return new WaitForEndOfFrame();
 
             base.OnServerAddPlayer(conn);
 
@@ -53,10 +65,13 @@ namespace Mirror.Examples.MultipleAdditiveScenes
             playerScore.scoreIndex = clientIndex / subScenes.Count;
             playerScore.matchIndex = clientIndex % subScenes.Count;
 
-            clientIndex++;
-
+            // Do this only on server, not on clients
+            // This is what allows the NetworkSceneChecker on player and scene objects
+            // to isolate matches per scene instance on server.
             if (subScenes.Count > 0)
                 SceneManager.MoveGameObjectToScene(conn.identity.gameObject, subScenes[clientIndex % subScenes.Count]);
+
+            clientIndex++;
         }
 
         #endregion

@@ -1,16 +1,22 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Mirror.Authenticators
 {
-    [AddComponentMenu("Network/Authenticators/BasicAuthenticator")]
+    [AddComponentMenu("Network/ Authenticators/Basic Authenticator")]
+    [HelpURL("https://mirror-networking.gitbook.io/docs/components/network-authenticators/basic-authenticator")]
     public class BasicAuthenticator : NetworkAuthenticator
     {
-        [Header("Custom Properties")]
+        [Header("Server Credentials")]
+        public string serverUsername;
+        public string serverPassword;
 
-        // set these in the inspector
+        [Header("Client Credentials")]
         public string username;
         public string password;
+
+        readonly HashSet<NetworkConnection> connectionsPendingDisconnect = new HashSet<NetworkConnection>();
 
         #region Messages
 
@@ -53,10 +59,10 @@ namespace Mirror.Authenticators
         }
 
         /// <summary>
-        /// Called on server from OnServerAuthenticateInternal when a client needs to authenticate
+        /// Called on server from OnServerConnectInternal when a client needs to authenticate
         /// </summary>
         /// <param name="conn">Connection to client.</param>
-        public override void OnServerAuthenticate(NetworkConnection conn)
+        public override void OnServerAuthenticate(NetworkConnectionToClient conn)
         {
             // do nothing...wait for AuthRequestMessage from client
         }
@@ -66,12 +72,14 @@ namespace Mirror.Authenticators
         /// </summary>
         /// <param name="conn">Connection to client.</param>
         /// <param name="msg">The message payload</param>
-        public void OnAuthRequestMessage(NetworkConnection conn, AuthRequestMessage msg)
+        public void OnAuthRequestMessage(NetworkConnectionToClient conn, AuthRequestMessage msg)
         {
-            // Debug.LogFormat(LogType.Log, "Authentication Request: {0} {1}", msg.authUsername, msg.authPassword);
+            //Debug.Log($"Authentication Request: {msg.authUsername} {msg.authPassword}");
+
+            if (connectionsPendingDisconnect.Contains(conn)) return;
 
             // check the credentials by calling your web server, database table, playfab api, or any method appropriate.
-            if (msg.authUsername == username && msg.authPassword == password)
+            if (msg.authUsername == serverUsername && msg.authPassword == serverPassword)
             {
                 // create and send msg to client so it knows to proceed
                 AuthResponseMessage authResponseMessage = new AuthResponseMessage
@@ -87,6 +95,8 @@ namespace Mirror.Authenticators
             }
             else
             {
+                connectionsPendingDisconnect.Add(conn);
+
                 // create and send msg to client so it knows to disconnect
                 AuthResponseMessage authResponseMessage = new AuthResponseMessage
                 {
@@ -100,16 +110,21 @@ namespace Mirror.Authenticators
                 conn.isAuthenticated = false;
 
                 // disconnect the client after 1 second so that response message gets delivered
-                StartCoroutine(DelayedDisconnect(conn, 1));
+                StartCoroutine(DelayedDisconnect(conn, 1f));
             }
         }
 
-        IEnumerator DelayedDisconnect(NetworkConnection conn, float waitTime)
+        IEnumerator DelayedDisconnect(NetworkConnectionToClient conn, float waitTime)
         {
             yield return new WaitForSeconds(waitTime);
 
             // Reject the unsuccessful authentication
             ServerReject(conn);
+
+            yield return null;
+
+            // remove conn from pending connections
+            connectionsPendingDisconnect.Remove(conn);
         }
 
         #endregion
@@ -137,10 +152,9 @@ namespace Mirror.Authenticators
         }
 
         /// <summary>
-        /// Called on client from OnClientAuthenticateInternal when a client needs to authenticate
+        /// Called on client from OnClientConnectInternal when a client needs to authenticate
         /// </summary>
-        /// <param name="conn">Connection of the client.</param>
-        public override void OnClientAuthenticate(NetworkConnection conn)
+        public override void OnClientAuthenticate()
         {
             AuthRequestMessage authRequestMessage = new AuthRequestMessage
             {
@@ -148,29 +162,28 @@ namespace Mirror.Authenticators
                 authPassword = password
             };
 
-            conn.Send(authRequestMessage);
+            NetworkClient.connection.Send(authRequestMessage);
         }
 
         /// <summary>
         /// Called on client when the server's AuthResponseMessage arrives
         /// </summary>
-        /// <param name="conn">Connection to client.</param>
         /// <param name="msg">The message payload</param>
-        public void OnAuthResponseMessage(NetworkConnection conn, AuthResponseMessage msg)
+        public void OnAuthResponseMessage(AuthResponseMessage msg)
         {
             if (msg.code == 100)
             {
-                // Debug.LogFormat(LogType.Log, "Authentication Response: {0}", msg.message);
+                //Debug.Log($"Authentication Response: {msg.message}");
 
                 // Authentication has been accepted
-                ClientAccept(conn);
+                ClientAccept();
             }
             else
             {
                 Debug.LogError($"Authentication Response: {msg.message}");
 
                 // Authentication has been rejected
-                ClientReject(conn);
+                ClientReject();
             }
         }
 

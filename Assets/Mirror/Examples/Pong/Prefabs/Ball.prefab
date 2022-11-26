@@ -50,6 +50,7 @@ SpriteRenderer:
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -61,6 +62,7 @@ SpriteRenderer:
   m_ProbeAnchor: {fileID: 0}
   m_LightProbeVolumeOverride: {fileID: 0}
   m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
   m_PreserveUVs: 0
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
@@ -126,7 +128,7 @@ Rigidbody2D:
   m_LinearDrag: 0
   m_AngularDrag: 0.05
   m_GravityScale: 0
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: 97a3e4cddb8635c4eba1265f44d106bf, type: 2}
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
@@ -143,9 +145,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b91ecbcc199f4492b9a91e820070131, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sceneId: 0
   serverOnly: 0
-  m_AssetId: 
-  m_SceneId: 0
+  visible: 0
+  m_AssetId: 5f7a7f34494ed40268eff49dbf9168bf
+  hasSpawned: 0
 --- !u!114 &114692463781779748
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -176,8 +180,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0
-  compressRotation: 1
   clientAuthority: 0
-  localPositionSensitivity: 0.01
-  localEulerAnglesSensitivity: 0.01
-  localScaleSensitivity: 0.01
+  sendInterval: 0.05
+  syncPosition: 1
+  syncRotation: 0
+  syncScale: 0
+  interpolatePosition: 1
+  interpolateRotation: 0
+  interpolateScale: 0
+  bufferTimeMultiplier: 1
+  bufferSizeLimit: 64
+  catchupThreshold: 4
+  catchupMultiplier: 0.1
+  showGizmos: 0
+  showOverlay: 0
+  overlayColor: {r: 0, g: 0, b: 0, a: 0.5}
